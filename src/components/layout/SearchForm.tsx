@@ -7,7 +7,11 @@ import { Button } from '@/components/ui/button'
 import { Search } from 'lucide-react'
 import slugify from 'slugify'
 
-export function SearchForm() {
+type Props = {
+  large?: boolean
+}
+
+export function SearchForm({ large }: Props) {
   const router = useRouter()
   const [query, setQuery] = useState('')
 
@@ -25,10 +29,10 @@ export function SearchForm() {
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder="Поиск..."
-        className="h-9"
+        className={large ? 'h-12 text-lg' : 'h-9'}
       />
-      <Button type="submit" size="sm" variant="ghost">
-        <Search size={16} />
+      <Button type="submit" size={large ? 'lg' : 'sm'} variant="ghost">
+        <Search size={large ? 20 : 16} />
       </Button>
     </form>
   )
