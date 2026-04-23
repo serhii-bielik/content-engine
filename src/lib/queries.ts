@@ -51,3 +51,87 @@ export async function getPopularTags(take = 30) {
     take,
   })
 }
+
+export async function getCategoryBySlug(slug: string) {
+  return prisma.category.findUnique({
+    where: { slug },
+    include: { _count: { select: { materials: true } } },
+  })
+}
+
+export async function getMaterialsByCategory({
+  categoryId,
+  page = 1,
+  perPage = 20,
+}: {
+  categoryId: number
+  page: number
+  perPage?: number
+}) {
+  const skip = (page - 1) * perPage
+  const MAX_PAGE = 50
+
+  if (page > MAX_PAGE) {
+    return {
+      items: [],
+      total: 0,
+      page,
+      totalPages: 0,
+      hasNext: false,
+      hasPrev: false,
+    }
+  }
+
+  const where = {
+    categoryId,
+    isPublished: true,
+    isHidden: false,
+  }
+
+  const [items, total] = await Promise.all([
+    prisma.material.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      skip,
+      take: perPage,
+      select: {
+        id: true,
+        slug: true,
+        title: true,
+        description: true,
+        image: true,
+        views: true,
+        rating: true,
+        createdAt: true,
+        category: { select: { slug: true, title: true } },
+        tags: { select: { tag: { select: { slug: true, title: true } } } },
+      },
+    }),
+    prisma.material.count({ where }),
+  ])
+
+  const totalPages = Math.ceil(total / perPage)
+
+  return {
+    items,
+    total,
+    page,
+    totalPages,
+    hasNext: page < totalPages,
+    hasPrev: page > 1,
+  }
+}
+
+export async function getPopularInCategory(categoryId: number, take = 5) {
+  return prisma.material.findMany({
+    where: { categoryId, isPublished: true, isHidden: false },
+    orderBy: { views: 'desc' },
+    take,
+    select: {
+      id: true,
+      slug: true,
+      title: true,
+      views: true,
+    },
+  })
+}
