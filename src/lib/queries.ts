@@ -135,3 +135,57 @@ export async function getPopularInCategory(categoryId: number, take = 5) {
     },
   })
 }
+
+export async function getMaterialBySlug(slug: string) {
+  // Извлекаем ID из начала slug (например "123-title-here" → 123)
+  const id = parseInt(slug.split('-')[0])
+  if (isNaN(id)) return null
+
+  return prisma.material.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      slug: true,
+      title: true,
+      description: true,
+      image: true,
+      views: true,
+      rating: true,
+      isPublished: true,
+      isHidden: true,
+      hiddenReason: true,
+      complaintsCount: true,
+      metadata: true,
+      createdAt: true,
+      updatedAt: true,
+      category: { select: { id: true, slug: true, title: true } },
+      tags: {
+        select: { tag: { select: { id: true, slug: true, title: true } } },
+      },
+    },
+  })
+}
+
+export async function getSimilarMaterials(
+  materialId: number,
+  categoryId: number,
+  take = 5
+) {
+  return prisma.material.findMany({
+    where: {
+      categoryId,
+      isPublished: true,
+      isHidden: false,
+      id: { not: materialId },
+    },
+    orderBy: { views: 'desc' },
+    take,
+    select: {
+      id: true,
+      slug: true,
+      title: true,
+      views: true,
+      category: { select: { slug: true, title: true } },
+    },
+  })
+}
