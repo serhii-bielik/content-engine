@@ -189,3 +189,149 @@ export async function getSimilarMaterials(
     },
   })
 }
+
+export async function getTagBySlug(slug: string) {
+  return prisma.tag.findUnique({
+    where: { slug },
+  })
+}
+
+export async function getMaterialsByTag({
+  tagId,
+  page = 1,
+  perPage = 20,
+}: {
+  tagId: number
+  page: number
+  perPage?: number
+}) {
+  const skip = (page - 1) * perPage
+  const MAX_PAGE = 50
+
+  if (page > MAX_PAGE) {
+    return {
+      items: [],
+      total: 0,
+      page,
+      totalPages: 0,
+      hasNext: false,
+      hasPrev: false,
+    }
+  }
+
+  const where = {
+    tags: { some: { tagId } },
+    isPublished: true,
+    isHidden: false,
+  }
+
+  const [items, total] = await Promise.all([
+    prisma.material.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      skip,
+      take: perPage,
+      select: {
+        id: true,
+        slug: true,
+        title: true,
+        description: true,
+        image: true,
+        views: true,
+        rating: true,
+        createdAt: true,
+        category: { select: { slug: true, title: true } },
+        tags: { select: { tag: { select: { slug: true, title: true } } } },
+      },
+    }),
+    prisma.material.count({ where }),
+  ])
+
+  const totalPages = Math.ceil(total / perPage)
+
+  return {
+    items,
+    total,
+    page,
+    totalPages,
+    hasNext: page < totalPages,
+    hasPrev: page > 1,
+  }
+}
+
+export async function searchMaterials({
+  query,
+  categoryId,
+  page = 1,
+  perPage = 20,
+}: {
+  query: string
+  categoryId?: number
+  page: number
+  perPage?: number
+}) {
+  const skip = (page - 1) * perPage
+
+  const where = {
+    isPublished: true,
+    isHidden: false,
+    ...(categoryId && { categoryId }),
+    OR: [
+      { title: { contains: query, mode: 'insensitive' as const } },
+      { description: { contains: query, mode: 'insensitive' as const } },
+    ],
+  }
+
+  const [items, total] = await Promise.all([
+    prisma.material.findMany({
+      where,
+      orderBy: { views: 'desc' },
+      skip,
+      take: perPage,
+      select: {
+        id: true,
+        slug: true,
+        title: true,
+        description: true,
+        image: true,
+        views: true,
+        rating: true,
+        createdAt: true,
+        category: { select: { slug: true, title: true } },
+        tags: { select: { tag: { select: { slug: true, title: true } } } },
+      },
+    }),
+    prisma.material.count({ where }),
+  ])
+
+  const totalPages = Math.ceil(total / perPage)
+
+  return {
+    items,
+    total,
+    page,
+    totalPages,
+    hasNext: page < totalPages,
+    hasPrev: page > 1,
+  }
+}
+
+export async function saveSearchQuery(query: string) {
+  const slug = (await import('slugify')).default(query, {
+    lower: true,
+    strict: true,
+  })
+
+  await prisma.searchQuery.upsert({
+    where: { query },
+    update: { count: { increment: 1 } },
+    create: { query, slug, count: 1 },
+  })
+}
+
+export async function getAllCategories() {
+  return prisma.category.findMany({
+    orderBy: { title: 'asc' },
+    select: { id: true, slug: true, title: true },
+  })
+}

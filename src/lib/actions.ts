@@ -2,6 +2,7 @@
 
 import { prisma } from '@/lib/prisma'
 import { headers } from 'next/headers'
+import { saveSearchQuery } from './queries'
 
 export async function incrementViews(materialId: number) {
   await prisma.material.update({
@@ -26,4 +27,9 @@ export async function voteMaterial(materialId: number, value: 1 | -1) {
   } catch {
     return { success: false, error: 'already_voted' }
   }
+}
+
+export async function saveQuery(query: string) {
+  if (query.trim().length < 2) return
+  await saveSearchQuery(query.trim())
 }
