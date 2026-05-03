@@ -48,6 +48,7 @@ model Material {
   updatedAt   DateTime      @updatedAt
   votes       Vote[]
   complaints  Complaint[]
+  searchVector  Unsupported("tsvector")?
 
   @@index([categoryId])
   @@index([isPublished])
