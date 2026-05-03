@@ -1,9 +1,9 @@
 import { Suspense } from 'react'
 import {
-  getPopularMaterials,
-  getPopularThisMonth,
-  getPopularTags,
-} from '@/lib/queries'
+  getCachedPopularMaterials,
+  getCachedPopularThisMonth,
+  getCachedPopularTags,
+} from '@/lib/cached-queries'
 import { MaterialCard } from '@/components/widgets/MaterialCard'
 import { PopularList } from '@/components/widgets/PopularList'
 import { TagCloud } from '@/components/widgets/TagCloud'
@@ -12,9 +12,9 @@ import { Skeleton } from '@/components/ui/skeleton'
 
 export default async function HomePage() {
   const [popular, thisMonth, tags] = await Promise.all([
-    getPopularMaterials(6),
-    getPopularThisMonth(10),
-    getPopularTags(30),
+    getCachedPopularMaterials(6),
+    getCachedPopularThisMonth(10),
+    getCachedPopularTags(30),
   ])
 
   return (

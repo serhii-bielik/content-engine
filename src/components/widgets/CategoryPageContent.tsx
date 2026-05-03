@@ -1,9 +1,6 @@
 import { notFound } from 'next/navigation'
-import {
-  getCategoryBySlug,
-  getMaterialsByCategory,
-  getPopularInCategory,
-} from '@/lib/queries'
+import { getCategoryBySlug, getMaterialsByCategory } from '@/lib/queries'
+import { getCachedPopularInCategory } from '@/lib/cached-queries'
 import { MaterialsTable } from './MaterialsTable'
 import { PopularList } from './PopularList'
 import { Pagination } from './Pagination'
@@ -19,7 +16,7 @@ export async function CategoryPageContent({ categorySlug, page }: Props) {
 
   const [result, popular] = await Promise.all([
     getMaterialsByCategory({ categoryId: category.id, page }),
-    getPopularInCategory(category.id),
+    getCachedPopularInCategory(category.id),
   ])
 
   if (page > 1 && result.items.length === 0) notFound()
