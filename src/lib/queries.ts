@@ -1,4 +1,18 @@
 import { prisma } from '@/lib/prisma'
+import { Prisma } from '../../generated/prisma/client'
+
+type RawMaterial = {
+  id: number
+  slug: string
+  title: string
+  description: string
+  image: string | null
+  views: number
+  rating: number
+  createdAt: Date
+  categoryId: number
+  rank: number
+}
 
 export async function getPopularMaterials(take = 10) {
   return prisma.material.findMany({
@@ -272,42 +286,85 @@ export async function searchMaterials({
 }) {
   const skip = (page - 1) * perPage
 
-  const where = {
-    isPublished: true,
-    isHidden: false,
-    ...(categoryId && { categoryId }),
-    OR: [
-      { title: { contains: query, mode: 'insensitive' as const } },
-      { description: { contains: query, mode: 'insensitive' as const } },
-    ],
-  }
+  // Подготавливаем запрос для PostgreSQL FTS
+  // Слова соединяем через & (AND) для поиска всех слов
+  const tsQuery = query
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((word) => `${word}:*`) // :* означает поиск по префиксу
+    .join(' & ')
 
-  const [items, total] = await Promise.all([
-    prisma.material.findMany({
-      where,
-      orderBy: { views: 'desc' },
-      skip,
-      take: perPage,
-      select: {
-        id: true,
-        slug: true,
-        title: true,
-        description: true,
-        image: true,
-        views: true,
-        rating: true,
-        createdAt: true,
-        category: { select: { slug: true, title: true } },
-        tags: { select: { tag: { select: { slug: true, title: true } } } },
-      },
-    }),
-    prisma.material.count({ where }),
+  const categoryFilter = categoryId
+    ? Prisma.sql`AND m."categoryId" = ${categoryId}`
+    : Prisma.sql``
+
+  const [items, countResult] = await Promise.all([
+    prisma.$queryRaw<RawMaterial[]>`
+      SELECT
+        m.id,
+        m.slug,
+        m.title,
+        m.description,
+        m.image,
+        m.views,
+        m.rating,
+        m."createdAt",
+        m."categoryId",
+        ts_rank(m."searchVector", to_tsquery('russian', ${tsQuery})) AS rank
+      FROM "Material" m
+      WHERE
+        m."isPublished" = true
+        AND m."isHidden" = false
+        AND m."searchVector" @@ to_tsquery('russian', ${tsQuery})
+        ${categoryFilter}
+      ORDER BY rank DESC, m.views DESC
+      LIMIT ${perPage}
+      OFFSET ${skip}
+    `,
+    prisma.$queryRaw<{ count: bigint }[]>`
+      SELECT COUNT(*) as count
+      FROM "Material" m
+      WHERE
+        m."isPublished" = true
+        AND m."isHidden" = false
+        AND m."searchVector" @@ to_tsquery('russian', ${tsQuery})
+        ${categoryFilter}
+    `,
   ])
 
+  // Подгружаем категории и теги для найденных материалов
+  const ids = items.map((m) => m.id)
+  const materialsWithRelations =
+    ids.length > 0
+      ? await prisma.material.findMany({
+          where: { id: { in: ids } },
+          select: {
+            id: true,
+            slug: true,
+            title: true,
+            description: true,
+            image: true,
+            views: true,
+            rating: true,
+            createdAt: true,
+            category: { select: { slug: true, title: true } },
+            tags: { select: { tag: { select: { slug: true, title: true } } } },
+          },
+        })
+      : []
+
+  // Сортируем по релевантности из raw запроса
+  const rankMap = new Map(items.map((m) => [m.id, m.rank]))
+  const sorted = materialsWithRelations.sort(
+    (a, b) => (rankMap.get(b.id) ?? 0) - (rankMap.get(a.id) ?? 0)
+  )
+
+  const total = Number(countResult[0]?.count ?? 0)
   const totalPages = Math.ceil(total / perPage)
 
   return {
-    items,
+    items: sorted,
     total,
     page,
     totalPages,
