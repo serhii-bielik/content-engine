@@ -2,11 +2,8 @@ import { notFound } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
 import type { Metadata } from 'next'
-import {
-  getMaterialBySlug,
-  getSimilarMaterials,
-  getPopularInCategory,
-} from '@/lib/queries'
+import { getMaterialBySlug, getSimilarMaterials } from '@/lib/queries'
+import { getCachedPopularInCategory } from '@/lib/cached-queries'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { PopularList } from '@/components/widgets/PopularList'
@@ -63,7 +60,7 @@ export default async function MaterialPage({ params }: Props) {
 
   const [similar, popular] = await Promise.all([
     getSimilarMaterials(material.id, material.category.id),
-    getPopularInCategory(material.category.id),
+    getCachedPopularInCategory(material.category.id),
   ])
 
   return (

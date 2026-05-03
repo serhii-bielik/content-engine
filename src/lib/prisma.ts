@@ -7,8 +7,18 @@ const globalForPrisma = globalThis as unknown as {
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! })
 
-export const prisma = globalForPrisma.prisma ?? new PrismaClient({ adapter })
+export const prisma =
+  globalForPrisma.prisma ??
+  new PrismaClient({
+    adapter,
+    log: [{ level: 'query', emit: 'event' }],
+  })
 
 if (process.env.NODE_ENV !== 'production') {
   globalForPrisma.prisma = prisma
+
+  // @ts-ignore
+  prisma.$on('query', (e) => {
+    console.log(`🔍 Query (${e.duration}ms):`, e.query.slice(0, 80))
+  })
 }
