@@ -392,3 +392,20 @@ export async function getAllCategories() {
     select: { id: true, slug: true, title: true },
   })
 }
+
+export async function getTopMaterials(take = 100) {
+  return prisma.material.findMany({
+    where: { isPublished: true, isHidden: false },
+    orderBy: { views: 'desc' },
+    take,
+    select: {
+      id: true,
+      slug: true,
+      title: true,
+      views: true,
+      rating: true,
+      createdAt: true,
+      category: { select: { slug: true, title: true } },
+    },
+  })
+}
