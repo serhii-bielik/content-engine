@@ -1,47 +1,59 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { TurnstileInstance } from '@marsidev/react-turnstile'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Captcha } from './Captcha'
 import { submitComplaint } from '@/lib/actions'
+import { complaintSchema, type ComplaintFormData } from '@/lib/schemas'
 
 type Props = {
   materialId: number
 }
 
 export function ComplaintForm({ materialId }: Props) {
-  const [text, setText] = useState('')
-  const [email, setEmail] = useState('')
+  const captchaRef = useRef<TurnstileInstance>(null)
   const [captchaToken, setCaptchaToken] = useState('')
-  const [status, setStatus] = useState<
-    'idle' | 'loading' | 'success' | 'error'
-  >('idle')
-  const [error, setError] = useState('')
+  const [captchaError, setCaptchaError] = useState(false)
+  const [submitError, setSubmitError] = useState('')
+  const [success, setSuccess] = useState(false)
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<ComplaintFormData>({
+    resolver: zodResolver(complaintSchema),
+  })
+
+  async function onSubmit(data: ComplaintFormData) {
     if (!captchaToken) {
-      setError('Пройдите проверку капчи')
+      setCaptchaError(true)
       return
     }
 
-    setStatus('loading')
+    setCaptchaError(false)
+    setSubmitError('')
+
     const result = await submitComplaint(materialId, {
-      text,
-      email,
+      text: data.text,
+      email: data.email || undefined,
       captchaToken,
     })
 
     if (result.success) {
-      setStatus('success')
+      setSuccess(true)
     } else {
-      setError(result.error ?? 'Ошибка отправки')
-      setStatus('error')
+      setSubmitError(result.error ?? 'Ошибка отправки')
+      captchaRef.current?.reset()
+      setCaptchaToken('')
     }
   }
 
-  if (status === 'success') {
+  if (success) {
     return (
       <div className="text-center py-8">
         <div className="text-4xl mb-4">✓</div>
@@ -54,18 +66,19 @@ export function ComplaintForm({ materialId }: Props) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+    <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
       <div>
         <label className="text-sm font-medium mb-1 block">
           Опишите проблему *
         </label>
         <textarea
-          value={text}
-          onChange={(e) => setText(e.target.value)}
+          {...register('text')}
           className="w-full min-h-32 rounded-md border bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-ring"
           placeholder="Что не так с этим материалом?"
-          required
         />
+        {errors.text && (
+          <p className="text-sm text-red-500 mt-1">{errors.text.message}</p>
+        )}
       </div>
 
       <div>
@@ -73,19 +86,30 @@ export function ComplaintForm({ materialId }: Props) {
           Email для обратной связи (необязательно)
         </label>
         <Input
+          {...register('email')}
           type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
           placeholder="your@email.com"
         />
+        {errors.email && (
+          <p className="text-sm text-red-500 mt-1">{errors.email.message}</p>
+        )}
       </div>
 
-      <Captcha onSuccess={setCaptchaToken} />
+      <Captcha
+        ref={captchaRef}
+        onSuccess={(token) => {
+          setCaptchaToken(token)
+          setCaptchaError(false)
+        }}
+      />
+      {captchaError && (
+        <p className="text-sm text-red-500">Пройдите проверку капчи</p>
+      )}
 
-      {error && <p className="text-sm text-red-500">{error}</p>}
+      {submitError && <p className="text-sm text-red-500">{submitError}</p>}
 
-      <Button type="submit" disabled={status === 'loading' || !text.trim()}>
-        {status === 'loading' ? 'Отправка...' : 'Отправить жалобу'}
+      <Button type="submit" disabled={isSubmitting}>
+        {isSubmitting ? 'Отправка...' : 'Отправить жалобу'}
       </Button>
     </form>
   )

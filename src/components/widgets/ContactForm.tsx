@@ -1,99 +1,112 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { TurnstileInstance } from '@marsidev/react-turnstile'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Captcha } from './Captcha'
 import { submitContact } from '@/lib/actions'
+import { contactSchema, type ContactFormData } from '@/lib/schemas'
 
 export function ContactForm() {
-  const [name, setName] = useState('')
-  const [email, setEmail] = useState('')
-  const [text, setText] = useState('')
+  const captchaRef = useRef<TurnstileInstance>(null)
   const [captchaToken, setCaptchaToken] = useState('')
-  const [status, setStatus] = useState<
-    'idle' | 'loading' | 'success' | 'error'
-  >('idle')
-  const [error, setError] = useState('')
+  const [captchaError, setCaptchaError] = useState(false)
+  const [submitError, setSubmitError] = useState('')
+  const [success, setSuccess] = useState(false)
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<ContactFormData>({
+    resolver: zodResolver(contactSchema),
+  })
+
+  async function onSubmit(data: ContactFormData) {
     if (!captchaToken) {
-      setError('Пройдите проверку капчи')
+      setCaptchaError(true)
       return
     }
 
-    setStatus('loading')
-    const result = await submitContact({
-      name,
-      email,
-      text,
-      captchaToken,
-    })
+    setCaptchaError(false)
+    setSubmitError('')
+
+    const result = await submitContact({ ...data, captchaToken })
 
     if (result.success) {
-      setStatus('success')
+      setSuccess(true)
     } else {
-      setError(result.error ?? 'Ошибка отправки')
-      setStatus('error')
+      setSubmitError(result.error ?? 'Ошибка отправки')
+      // Сбрасываем капчу для повторной попытки
+      captchaRef.current?.reset()
+      setCaptchaToken('')
     }
   }
 
-  if (status === 'success') {
+  if (success) {
     return (
       <div className="text-center py-8">
         <div className="text-4xl mb-4">✓</div>
         <h2 className="font-semibold text-lg mb-2">Сообщение отправлено</h2>
         <p className="text-muted-foreground text-sm">
-          Мы ответим вам в ближайшее время
+          Мы свяжемся с вами в ближайшее время
         </p>
       </div>
     )
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+    <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
       <div>
-        <label className="text-sm font-medium mb-1 block">Ваше сообщение</label>
-        <textarea
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          className="w-full min-h-32 rounded-md border bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-ring"
-          placeholder="Что бы вы хотели сказать?"
-          required
-        />
+        <label className="text-sm font-medium mb-1 block">Имя *</label>
+        <Input {...register('name')} placeholder="Ваше имя" />
+        {errors.name && (
+          <p className="text-sm text-red-500 mt-1">{errors.name.message}</p>
+        )}
       </div>
 
       <div>
-        <label className="text-sm font-medium mb-1 block">
-          Ваше имя (необязательно)
-        </label>
+        <label className="text-sm font-medium mb-1 block">Email *</label>
         <Input
-          type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Ваше имя"
-        />
-      </div>
-
-      <div>
-        <label className="text-sm font-medium mb-1 block">
-          Email для обратной связи (необязательно)
-        </label>
-        <Input
+          {...register('email')}
           type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
           placeholder="your@email.com"
         />
+        {errors.email && (
+          <p className="text-sm text-red-500 mt-1">{errors.email.message}</p>
+        )}
       </div>
 
-      <Captcha onSuccess={setCaptchaToken} />
+      <div>
+        <label className="text-sm font-medium mb-1 block">Сообщение *</label>
+        <textarea
+          {...register('text')}
+          className="w-full min-h-32 rounded-md border bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-ring"
+          placeholder="Ваше сообщение..."
+        />
+        {errors.text && (
+          <p className="text-sm text-red-500 mt-1">{errors.text.message}</p>
+        )}
+      </div>
 
-      {error && <p className="text-sm text-red-500">{error}</p>}
+      <Captcha
+        ref={captchaRef}
+        onSuccess={(token) => {
+          setCaptchaToken(token)
+          setCaptchaError(false)
+        }}
+      />
+      {captchaError && (
+        <p className="text-sm text-red-500">Пройдите проверку капчи</p>
+      )}
 
-      <Button type="submit" disabled={status === 'loading' || !text.trim()}>
-        {status === 'loading' ? 'Отправка...' : 'Отправить жалобу'}
+      {submitError && <p className="text-sm text-red-500">{submitError}</p>}
+
+      <Button type="submit" disabled={isSubmitting}>
+        {isSubmitting ? 'Отправка...' : 'Отправить'}
       </Button>
     </form>
   )
