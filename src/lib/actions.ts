@@ -125,3 +125,47 @@ export async function submitContact(data: {
 
   return { success: true }
 }
+
+export async function reviewMessage(messageId: number) {
+  await prisma.contactMessage.update({
+    where: { id: messageId },
+    data: { isReviewed: true },
+  })
+}
+
+export async function reviewComplaint(complaintId: number) {
+  await prisma.complaint.update({
+    where: { id: complaintId },
+    data: { isReviewed: true },
+  })
+}
+
+export async function hideMaterial(materialId: number, complaintId: number) {
+  await prisma.$transaction([
+    prisma.material.update({
+      where: { id: materialId },
+      data: { isHidden: true },
+    }),
+    prisma.complaint.update({
+      where: { id: complaintId },
+      data: { isReviewed: true },
+    }),
+  ])
+}
+
+export async function toggleMaterialVisibility(
+  materialId: number,
+  action: 'publish' | 'unpublish' | 'unhide'
+) {
+  const data =
+    action === 'publish'
+      ? { isPublished: true }
+      : action === 'unpublish'
+        ? { isPublished: false }
+        : { isHidden: false, complaintsCount: 0 }
+
+  await prisma.material.update({
+    where: { id: materialId },
+    data,
+  })
+}
