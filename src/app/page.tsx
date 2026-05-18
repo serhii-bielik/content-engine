@@ -10,6 +10,8 @@ import { TagCloud } from '@/components/widgets/TagCloud'
 import { SearchForm } from '@/components/layout/SearchForm'
 import { Skeleton } from '@/components/ui/skeleton'
 
+export const revalidate = 600
+
 export default async function HomePage() {
   const [popular, thisMonth, tags] = await Promise.all([
     getCachedPopularMaterials(6),

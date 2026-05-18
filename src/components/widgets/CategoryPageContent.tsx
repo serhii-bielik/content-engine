@@ -4,10 +4,25 @@ import { getCachedPopularInCategory } from '@/lib/cached-queries'
 import { MaterialsTable } from './MaterialsTable'
 import { PopularList } from './PopularList'
 import { Pagination } from './Pagination'
+import { headers } from 'next/headers'
 
 type Props = {
   categorySlug: string
   page: number
+}
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { categorySlug } = await params
+  const category = await getCategoryBySlug(categorySlug)
+  if (!category) return {}
+
+  return {
+    title: category.title,
+    description: category.description ?? undefined,
+    alternates: {
+      canonical: `${process.env.NEXT_PUBLIC_BASE_URL}/${categorySlug}`,
+    },
+  }
 }
 
 export async function CategoryPageContent({ categorySlug, page }: Props) {

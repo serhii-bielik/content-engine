@@ -11,6 +11,9 @@ import { VoteButtons } from '@/components/widgets/VoteButtons'
 import { ViewCounter } from '@/components/widgets/ViewCounter'
 import { Eye, Calendar, Flag } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { JsonLd } from '@/components/widgets/JsonLd'
+
+export const revalidate = 86400
 
 type Props = {
   params: Promise<{ slug: string }>
@@ -151,6 +154,17 @@ export default async function MaterialPage({ params }: Props) {
             </Link>
           </Button>
         </div>
+        <JsonLd
+          data={{
+            '@context': 'https://schema.org',
+            '@type': 'Article',
+            headline: material.title,
+            description: material.description.slice(0, 160),
+            datePublished: material.createdAt.toISOString(),
+            dateModified: material.updatedAt.toISOString(),
+            image: material.image ?? undefined,
+          }}
+        />
       </article>
 
       {/* Сайдбар */}
