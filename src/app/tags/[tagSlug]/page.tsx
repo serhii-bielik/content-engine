@@ -2,6 +2,8 @@ import type { Metadata } from 'next'
 import { getTagBySlug } from '@/lib/queries'
 import { TagPageContent } from '@/components/widgets/TagPageContent'
 
+export const revalidate = 3600
+
 type Props = {
   params: Promise<{ tagSlug: string }>
 }

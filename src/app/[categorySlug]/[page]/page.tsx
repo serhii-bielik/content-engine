@@ -3,6 +3,8 @@ import type { Metadata } from 'next'
 import { getCategoryBySlug } from '@/lib/queries'
 import { CategoryPageContent } from '@/components/widgets/CategoryPageContent'
 
+export const revalidate = 3600
+
 type Props = {
   params: Promise<{ categorySlug: string; page: string }>
 }

@@ -13,6 +13,21 @@ export const metadata: Metadata = {
     template: '%s | ContentEngine',
   },
   description: 'Лучшие материалы по технологиям, науке и культуре',
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000'
+  ),
+  openGraph: {
+    siteName: 'ContentEngine',
+    type: 'website',
+    locale: 'ru_RU',
+  },
+  twitter: {
+    card: 'summary_large_image',
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 }
 
 export default function RootLayout({
