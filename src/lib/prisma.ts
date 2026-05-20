@@ -16,9 +16,4 @@ export const prisma =
 
 if (process.env.NODE_ENV !== 'production') {
   globalForPrisma.prisma = prisma
-
-  // @ts-ignore
-  prisma.$on('query', (e) => {
-    console.log(`🔍 Query (${e.duration}ms):`, e.query.slice(0, 80))
-  })
 }
