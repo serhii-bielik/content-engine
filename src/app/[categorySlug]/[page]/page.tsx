@@ -13,9 +13,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { categorySlug, page } = await params
   const category = await getCategoryBySlug(categorySlug)
   if (!category) return {}
+
   return {
     title: `${category.title} — страница ${page}`,
     description: category.description ?? undefined,
+    alternates: {
+      canonical: `${process.env.NEXT_PUBLIC_BASE_URL}/${categorySlug}`,
+    },
   }
 }
 
